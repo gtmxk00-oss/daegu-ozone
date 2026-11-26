@@ -1,0 +1,135 @@
+/* 대구 오존 시간표: 올린 파일 읽기(CSV, 엑셀 xlsx, zip). 브라우저(Chrome·Edge, Safari 16.4 이상, Firefox 113 이상)와 Node 21.2 이상에서 같은 코드로 동작한다(deflate-raw 압축 풀기).
+ * 에어코리아 '최종확정 측정자료'는 연도별 zip 안에 월별 xlsx(전국 약 49만 행, 압축을 풀면 약 270MB)가 들어 있다.
+ * 파일 전체를 메모리에 올리지 않고 zip 목차로 필요한 부분만 잘라 읽고, 시트는 스트림으로 풀면서 대구 행만 남긴다.
+ * 결과는 ozone-core.js의 detectColumns/toRecords에 그대로 넣을 수 있는 { name, header, rows } 표 목록이다. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./ozone-core.js'));
+  else root.OzoneFiles = factory(root.OzoneCore);
+})(typeof self !== 'undefined' ? self : this, function (Core) {
+  'use strict';
+  const utf8 = new TextDecoder('utf-8');
+  const u16 = (b, o) => b[o] | (b[o + 1] << 8);
+  const u32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
+  const bytesOf = async (blob, a, b) => new Uint8Array(await blob.slice(a, b).arrayBuffer());
+  const decodeName = nb => { try { return new TextDecoder('euc-kr', { fatal: true }).decode(nb); } catch (e) { return utf8.decode(nb); } };
+
+  // ---------- zip: 끝의 목차(central directory)로 항목 위치를 찾는다 ----------
+  async function zipEntries(blob) {
+    const size = blob.size, tailLen = Math.min(size, 65557), tail = await bytesOf(blob, size - tailLen, size);
+    let e = -1;
+    for (let i = tail.length - 22; i >= 0; i--) if (u32(tail, i) === 0x06054b50) { e = i; break; }
+    if (e < 0) throw new Error('zip(또는 xlsx) 형식이 아닙니다.');
+    const count = u16(tail, e + 10), cdSize = u32(tail, e + 12), cdOff = u32(tail, e + 16);
+    if (cdOff === 0xffffffff) throw new Error('4GB가 넘는 zip은 읽을 수 없습니다. 압축을 풀어 xlsx만 올려 주세요.');
+    const cd = await bytesOf(blob, cdOff, cdOff + cdSize), out = [];
+    for (let k = 0, p = 0; k < count && p + 46 <= cd.length && u32(cd, p) === 0x02014b50; k++) {
+      const flags = u16(cd, p + 8), method = u16(cd, p + 10), csize = u32(cd, p + 20), usize = u32(cd, p + 24);
+      const nl = u16(cd, p + 28), xl = u16(cd, p + 30), cl = u16(cd, p + 32), lho = u32(cd, p + 42);
+      const nb = cd.subarray(p + 46, p + 46 + nl);
+      out.push({ name: (flags & 0x800) ? utf8.decode(nb) : decodeName(nb), method, csize, usize, lho });
+      p += 46 + nl + xl + cl;
+    }
+    return out;
+  }
+  const needStreams = () => { if (typeof DecompressionStream === 'undefined' || typeof TextDecoderStream === 'undefined') throw new Error('이 브라우저는 압축 파일 읽기를 지원하지 않습니다. 최신 Chrome·Edge, Safari 16.4 이상, Firefox 113 이상을 쓰거나 CSV로 올려 주세요.'); };
+  async function entryStream(blob, ent) {
+    needStreams();
+    const h = await bytesOf(blob, ent.lho, ent.lho + 30);
+    const start = ent.lho + 30 + u16(h, 26) + u16(h, 28);
+    const s = blob.slice(start, start + ent.csize).stream();
+    if (ent.method === 0) return s;
+    if (ent.method === 8) return s.pipeThrough(new DecompressionStream('deflate-raw'));
+    throw new Error('지원하지 않는 zip 압축 방식입니다(' + ent.method + ').');
+  }
+  const entryBlob = async (blob, ent) => new Response(await entryStream(blob, ent)).blob();
+
+  // ---------- xlsx: 공유 문자열 + 첫 시트를 스트림으로 읽는다 ----------
+  const unxml = s => s.replace(/&(lt|gt|amp|quot|apos|#\d+|#x[0-9a-f]+);/gi, (m, k) => ({ lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" }[k.toLowerCase()] || (k[1] === 'x' || k[1] === 'X' ? String.fromCodePoint(parseInt(k.slice(2), 16)) : String.fromCodePoint(+k.slice(1)))));
+  const textOf = xml => { let s = ''; xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, '').replace(/<t\b(?:\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/t>)/g, (m, t) => { s += t || ''; return m; }); return unxml(s); };
+  function sharedStrings(xml) { const out = []; xml.replace(/<si>([\s\S]*?)<\/si>/g, (m, inner) => { out.push(textOf(inner)); return m; }); return out; }
+  const colIndex = ref => { let n = 0; for (let i = 0; i < ref.length; i++) { const c = ref.charCodeAt(i); if (c < 65 || c > 90) break; n = n * 26 + (c - 64); } return n - 1; };
+  const ROW = /<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g, CELL = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+  const ATTR_R = /\br="([A-Z]+)\d*"/, ATTR_T = /\bt="(\w+)"/, V = /<v>([\s\S]*?)<\/v>/;
+  function parseRow(inner, ss) {
+    const row = [];
+    if (!inner) return row;
+    CELL.lastIndex = 0; let m, next = 0;
+    while ((m = CELL.exec(inner))) {
+      const attrs = m[1], body = m[2] || '', r = ATTR_R.exec(attrs), t = ATTR_T.exec(attrs);
+      const ci = r ? colIndex(r[1]) : next; next = ci + 1;
+      let v = '';
+      if (t && t[1] === 'inlineStr') v = textOf(body);
+      else { const vm = V.exec(body); if (vm) v = t && t[1] === 's' ? (ss[+vm[1]] ?? '') : unxml(vm[1]); }
+      row[ci] = v;
+    }
+    for (let i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
+    return row;
+  }
+  async function readXlsx(blob, name, opts) {
+    const ents = await zipEntries(blob);
+    const sheet = ents.find(e => e.name === 'xl/worksheets/sheet1.xml') || ents.find(e => /^xl\/worksheets\/sheet\d+\.xml$/.test(e.name));
+    if (!sheet) throw new Error(name + ': 엑셀 시트를 찾지 못했습니다.');
+    const ssEnt = ents.find(e => e.name === 'xl/sharedStrings.xml');
+    const ss = ssEnt ? sharedStrings(await new Response(await entryStream(blob, ssEnt)).text()) : [];
+    const reader = (await entryStream(blob, sheet)).pipeThrough(new TextDecoderStream()).getReader();
+    let buf = '', read = 0, header = null, keep = null, total = 0;
+    const rows = [];
+    const eat = chunk => {
+      ROW.lastIndex = 0; let m;
+      while ((m = ROW.exec(chunk))) {
+        const row = parseRow(m[1], ss);
+        if (!header) { if (row.some(x => x !== '')) { header = row; keep = rowFilter(header, opts); } continue; }
+        total++;
+        if (!keep || keep(row)) { rows.push(row); if (rows.length > 3000000) throw new Error(name + ': 행이 300만을 넘어 브라우저 메모리를 넘길 수 있습니다. 대구 측정소만 남기기를 켜거나 기간을 나눠 올려 주세요.'); }
+      }
+    };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (value) { buf += value; read += value.length; }
+      const cut = buf.lastIndexOf('</row>');
+      if (cut >= 0) { eat(buf.slice(0, cut + 6)); buf = buf.slice(cut + 6); }
+      if (opts.onProgress) opts.onProgress(name, Math.min(1, read / (sheet.usize || 1)));
+      if (done) { if (buf.includes('<row')) eat(buf); break; }
+    }
+    return { name, header: header || [], rows, total };
+  }
+
+  // ---------- 지역 걸러내기: '지역'(·'망') 열이 있는 전국 자료이면 대구(도시대기)만 남긴다 ----------
+  function rowFilter(header, opts) {
+    if (!opts.daeguOnly) return null;
+    const h = header.map(x => String(x).replace(/\s+/g, ''));
+    const ri = h.indexOf('지역'), ni = h.indexOf('망');
+    if (ri < 0) return null;
+    return row => String(row[ri] || '').startsWith('대구') && (ni < 0 || String(row[ni] || '').replace(/\s+/g, '') === '도시대기');
+  }
+  async function readCsv(blob, name, opts) {
+    if (blob.size > 400 * 1024 * 1024) throw new Error(name + ': CSV가 400MB보다 큽니다. 기간을 나눠 올려 주세요.');
+    const rows = Core.parseCSV(Core.decode(await blob.arrayBuffer()));
+    const header = rows[0] || [], keep = rowFilter(header, opts), body = rows.slice(1);
+    return { name, header, rows: keep ? body.filter(keep) : body, total: body.length };
+  }
+
+  // ---------- 파일 하나(CSV, xlsx, 또는 그 둘을 담은 zip) → 표 목록 ----------
+  async function readAny(blob, name, opts = {}) {
+    const lower = name.toLowerCase();
+    if (lower.endsWith('.csv') || lower.endsWith('.txt')) return [await readCsv(blob, name, opts)];
+    if (lower.endsWith('.xlsx')) return [await readXlsx(blob, name, opts)];
+    if (lower.endsWith('.xls')) throw new Error(name + ': 옛 엑셀(.xls)은 읽을 수 없습니다. 엑셀에서 .xlsx나 .csv로 저장해 올려 주세요.');
+    if (lower.endsWith('.zip')) {
+      const ents = (await zipEntries(blob)).filter(e => /\.(csv|xlsx)$/i.test(e.name) && !/(^|\/)(__MACOSX|\.)/.test(e.name));
+      if (!ents.length) throw new Error(name + ': zip 안에 CSV나 xlsx 파일이 없습니다.');
+      ents.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
+      const out = [];
+      for (const e of ents) {
+        const inner = await entryBlob(blob, e), label = name + ' › ' + e.name.split('/').pop();
+        out.push(/\.csv$/i.test(e.name) ? await readCsv(inner, label, opts) : await readXlsx(inner, label, opts));
+      }
+      return out;
+    }
+    // 확장자가 없으면 내용으로 판단: zip 서명(PK)이면 xlsx, 아니면 CSV
+    const head = await bytesOf(blob, 0, 4);
+    return [head[0] === 0x50 && head[1] === 0x4b ? await readXlsx(blob, name, opts) : await readCsv(blob, name, opts)];
+  }
+
+  return { zipEntries, readAny, readXlsx, readCsv, rowFilter };
+});

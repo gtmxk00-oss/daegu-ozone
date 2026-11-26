@@ -1,0 +1,9 @@
+# 예약 작업용 Worker. 배포: 이 폴더에서 npx --yes wrangler@4 deploy
+# 없애려면: npx --yes wrangler@4 delete --name daegu-ozone-cron
+name = "daegu-ozone-cron"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = false   # 공개 주소를 만들지 않는다(예약 실행만)
+
+[triggers]
+crons = ["*/10 * * * *"]

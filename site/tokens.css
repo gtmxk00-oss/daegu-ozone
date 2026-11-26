@@ -1,0 +1,32 @@
+:root {
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --color-error: oklch(52% 0.19 27); --color-success: oklch(50% 0.12 150);
+  --container: 1280px; --gutter: 40px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  /* 브랜드: AI/AX 연구소의 밝은 판(사용자 지정). 따뜻한 종이색, 주황은 주요 동작과 선택 표시에만 */
+  --color-paper: #faf9f6; --color-paper-2: #ffffff; --color-paper-3: #f2f0ea;
+  --color-ink: #171815; --color-ink-2: #3d3f39; --color-muted: #63655d;
+  --color-rule: #e2dfd6; --color-rule-strong: #8b8d84;
+  --color-accent: #e8711f; --color-accent-hover: #f08436; --color-accent-ink: #1d1209; --color-accent-text: #a9480b; --color-accent-well: #fdf0e4; --color-focus: #c45a12;
+  --color-good: #087508; --color-good-well: #e3efe3; --color-bad: #b42f2f; --color-bad-well: #f6e3e1;
+  --font-display: "Pretendard Local", "Segoe UI", "Malgun Gothic", ui-sans-serif, system-ui, sans-serif; --font-body: "Pretendard Local", "Segoe UI", "Malgun Gothic", ui-sans-serif, system-ui, sans-serif; --font-outlier: var(--font-body);
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+  --radius-card: 8px; --radius-control: 6px; --radius-pill: 999px; --rule-hair: 1px; --shadow-card: none;
+  --tracking-display: -0.02em;
+  /* 출처 종류 표시(글자색과 옅은 바탕) */
+  --tint-stat: #1d4f8f; --tint-stat-well: #e6eef9; --tint-paper: #5a3b8f; --tint-paper-well: #efe7f8; --tint-report: #22633c; --tint-report-well: #e5f1ea;
+  --tint-comm: #6b5a1f; --tint-comm-well: #f3efe2; --tint-video: #9c2a22; --tint-video-well: #fde8e6;
+  /* 분석 코드 창 */
+  --code-bg: #1b1c19; --code-ink: #e9e6dc; --code-rule: #33342f; --code-num: #5f5d55; --code-bar: #a5a397; --code-k: #e7b991; --code-f: #9cc7f0; --code-s: #f1d38f; --code-c: #8d8b80; --code-out: #b9d7a8;
+  --tip-bg: #1c1d1a; --tip-ink: #f4f2ec;
+  /* 실시간 오존 등급(에어코리아 관례: 좋음 파랑, 보통 초록, 나쁨 주황빛 빨강, 매우나쁨 진한 빨강) */
+  --grade-good: #1d4f8f; --grade-fair: #087508; --grade-bad: #b42f2f; --grade-worse: #7a1414;
+  /* 그래프(dataviz 검증 팔레트). app.js가 이 값을 읽어 그린다 */
+  --viz-o3: #2a78d6; --viz-no2: #eb6834; --viz-pm: #1baf7a; --viz-ink: #3d3f39; --viz-muted: #b9b7af; --viz-empty: #f1efe9;
+  --viz-grid: #e1e0d9; --viz-axis: #c3c2b7; --viz-text: #6e6c66; --viz-on-dark: #ffffff; --viz-on-light: #171815;
+  --ramp: #cde2fb, #b7d3f6, #9ec5f4, #86b6ef, #6da7ec, #5598e7, #3987e5, #2a78d6, #256abf, #1c5cab, #184f95, #104281, #0d366b;
+}

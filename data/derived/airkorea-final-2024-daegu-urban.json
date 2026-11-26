@@ -1,0 +1,73 @@
+{
+  "title": "에어코리아 최종확정 측정자료 2024년(대구 도시대기 측정소만 추출)",
+  "provider": "환경부·한국환경공단(에어코리아)",
+  "url": "https://www.airkorea.or.kr/web/last_amb_hour_data?pMENU_NO=123",
+  "sourceFile": "2024.zip",
+  "sourceBytes": 345117708,
+  "sourceSha256": "4520ac843ee80097fe0a9f6c1bcf1022f5fef86fb9a1651ecdc055c38b667f16",
+  "monthlyFiles": [
+    {
+      "name": "2024.zip › 2024년 1월.xlsx",
+      "rowsNationwide": 488064,
+      "rowsKept": 14880
+    },
+    {
+      "name": "2024.zip › 2024년 2월.xlsx",
+      "rowsNationwide": 458986,
+      "rowsKept": 13920
+    },
+    {
+      "name": "2024.zip › 2024년 3월.xlsx",
+      "rowsNationwide": 491304,
+      "rowsKept": 14880
+    },
+    {
+      "name": "2024.zip › 2024년 4월.xlsx",
+      "rowsNationwide": 476263,
+      "rowsKept": 14400
+    },
+    {
+      "name": "2024.zip › 2024년 5월.xlsx",
+      "rowsNationwide": 493045,
+      "rowsKept": 14880
+    },
+    {
+      "name": "2024.zip › 2024년 6월.xlsx",
+      "rowsNationwide": 478007,
+      "rowsKept": 14400
+    },
+    {
+      "name": "2024.zip › 2024년 7월.xlsx",
+      "rowsNationwide": 494016,
+      "rowsKept": 14880
+    },
+    {
+      "name": "2024.zip › 2024년 8월.xlsx",
+      "rowsNationwide": 494016,
+      "rowsKept": 14880
+    },
+    {
+      "name": "2024.zip › 2024년 9월.xlsx",
+      "rowsNationwide": 478080,
+      "rowsKept": 14400
+    },
+    {
+      "name": "2024.zip › 2024년 10월.xlsx",
+      "rowsNationwide": 494016,
+      "rowsKept": 14880
+    },
+    {
+      "name": "2024.zip › 2024년 11월.xlsx",
+      "rowsNationwide": 478800,
+      "rowsKept": 14400
+    },
+    {
+      "name": "2024.zip › 2024년 12월.xlsx",
+      "rowsNationwide": 494760,
+      "rowsKept": 14880
+    }
+  ],
+  "filter": "지역이 '대구'로 시작하고 망이 '도시대기'인 행",
+  "extractedWith": "site/ozone-files.js",
+  "extractedAt": "2026-11-09"
+}

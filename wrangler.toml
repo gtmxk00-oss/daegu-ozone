@@ -1,0 +1,12 @@
+# Cloudflare Pages 설정(공개 사이트 https://daegu-ozone.pages.dev/)
+# 배포: 프로젝트 폴더에서 npx --yes wrangler@4 pages deploy --branch main --commit-dirty=true
+name = "daegu-ozone"
+pages_build_output_dir = "./site"
+compatibility_date = "2026-10-01"
+
+# 에어코리아 응답을 저장해 하루 호출 수(개발계정 500회)를 넘지 않게 한다. functions/api/air.js가 쓴다.
+[[kv_namespaces]]
+binding = "CACHE"
+id = "1ed254e7eb304097961b7f5bad6e2cf0"
+
+# 공공데이터포털 키는 여기에 적지 않는다. 비밀값으로 넣는다: node analysis/put-secret.mjs
